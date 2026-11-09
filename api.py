@@ -4,7 +4,10 @@ from pydantic import BaseModel
 
 app = FastAPI(title="我的单词本 API (SQLite 版)")
 
-DB_FILE = "words.db"
+#DB_FILE = "words.db"
+import os
+# 如果环境变量里有 TEST_DB，就用测试库；否则用正式库
+DB_FILE = os.getenv("DB_FILE", "words.db")
 
 # 1. 初始化数据库：建表
 def init_db():
