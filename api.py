@@ -1,40 +1,54 @@
-import json
-import os
-from fastapi import FastAPI, HTTPException
+import sqlite3
+from fastapi import FastAPI
 from pydantic import BaseModel
 
-app = FastAPI(title="我的单词本 API") # 这就是咱们的后端服务大管家
+app = FastAPI(title="我的单词本 API (SQLite 版)")
 
-DATA_FILE = "words.json"
+DB_FILE = "words.db"
 
-# 1. 还是读取数据的逻辑
-if os.path.exists(DATA_FILE):
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        word_dict = json.load(f)
-else:
-    word_dict = {}
+# 1. 初始化数据库：建表
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS words (
+            english TEXT PRIMARY KEY,
+            chinese TEXT NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
 
-# 2. 定义添加单词时，客户端需要传过来的数据格式
+# 启动时建表
+init_db()
+
 class WordItem(BaseModel):
     english: str
     chinese: str
 
-
-# 3. 接口一：获取所有单词 (GET 请求)
+# 2. 查数据
 @app.get("/words")
 def get_all_words():
-    """客户端访问 /words 时，返回所有的单词"""
-    return word_dict
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT english, chinese FROM words")
+    rows = cursor.fetchall()
+    conn.close()
+    
+    # 把 [('apple', '苹果')] 转换成 {"apple": "苹果"} 给前端
+    return {row[0]: row[1] for row in rows}
 
-
-# 4. 接口二：添加新单词 (POST 请求)
+# 3. 写数据
 @app.post("/words")
 def add_word(item: WordItem):
-    """客户端往 /words 发数据时，添加到单词本里"""
-    word_dict[item.english] = item.chinese
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
     
-    # 存盘
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(word_dict, f, ensure_ascii=False, indent=4)
-        
-    return {"message": f"成功添加：{item.english} -> {item.chinese}"}
+    cursor.execute(
+        "INSERT OR REPLACE INTO words (english, chinese) VALUES (?, ?)",
+        (item.english, item.chinese)
+    )
+    conn.commit()
+    conn.close()
+    
+    return {"message": f"成功写入数据库：{item.english} -> {item.chinese}"}
