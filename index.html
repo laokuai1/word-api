@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>我的专属单词本</title>
+    <style>
+        body { font-family: Arial; max-width: 500px; margin: 50px auto; background: #f4f4f9; }
+        .box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        input { width: 90%; padding: 8px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; }
+        button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px;}
+        button:hover { background: #0056b3; }
+        ul { list-style: none; padding: 0; }
+        li { background: #eef; padding: 10px; margin: 5px 0; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>📖 我的专属单词本</h2>
+        
+        <!-- 添加单词表单 -->
+        <input type="text" id="english" placeholder="英文单词 (如: apple)">
+        <input type="text" id="chinese" placeholder="中文翻译 (如: 苹果)">
+        <button onclick="addWord()">添加并保存</button>
+        
+        <hr>
+        <!-- 单词列表展示 -->
+        <h3>已保存的单词：</h3>
+        <ul id="wordList"></ul>
+    </div>
+
+    <script>
+        // 1. 加载所有单词
+        async function loadWords() {
+            const res = await fetch("http://127.0.0.1:8001/words"); // 呼叫后端接口
+            const data = await res.json();
+            const list = document.getElementById("wordList");
+            list.innerHTML = ""; // 清空列表
+            for (let eng in data) {
+                let li = document.createElement("li");
+                li.innerText = `${eng} : ${data[eng]}`;
+                list.appendChild(li);
+            }
+        }
+
+        // 2. 添加单词
+        async function addWord() {
+            const eng = document.getElementById("english").value;
+            const chn = document.getElementById("chinese").value;
+            if (!eng || !chn) { alert("请填写完整！"); return; }
+
+            await fetch("http://127.0.0.1:8001/words", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ english: eng, chinese: chn }) // 发送数据
+            });
+
+            document.getElementById("english").value = ""; // 清空输入框
+            document.getElementById("chinese").value = "";
+            loadWords(); // 刷新列表
+        }
+
+        // 页面打开时自动加载一次
+        loadWords();
+    </script>
+</body>
+</html>
